@@ -48,11 +48,18 @@
       z-index: 9999;
       user-select: none;
     }
+    .school {
+      font-size: 1.1rem;
+      color: #4a5568;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>오늘의 급식</h1>
+    <div class="school">단샘초등학교</div>
     <div class="date" id="date"></div>
     <div class="meal" id="meal"></div>
   </div>
@@ -81,10 +88,11 @@
         let mealText = '';
         if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row && data.mealServiceDietInfo[1].row[0]) {
           mealText = data.mealServiceDietInfo[1].row[0].DDISH_NM;
-          // HTML 태그 제거 및 <br/>을 줄바꿈으로 변환
+          // 괄호(알레르기 정보 등) 제거, <br/> 또는 \n을 <br>로 변환
           mealText = mealText.replace(/<br\s*\/?>/gi, '\n').replace(/\([^)]*\)/g, '');
-          mealText = mealText.split('\\n').join(', ');
-          document.getElementById('meal').textContent = mealText;
+          // 줄바꿈 기준으로 나누고, 각 메뉴 앞뒤 공백 제거
+          const menuArr = mealText.split(/\n|\\n/).map(m => m.trim()).filter(Boolean);
+          document.getElementById('meal').innerHTML = menuArr.join('<br>');
         } else {
           document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보가 없습니다.</span>';
         }
