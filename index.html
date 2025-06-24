@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 급식 알리미</title>
+  <style>
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: #f6f8fa;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+    .container {
+      background: #fff;
+      padding: 2rem 2.5rem;
+      border-radius: 1rem;
+      box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+      text-align: center;
+    }
+    h1 {
+      color: #2d3748;
+      margin-bottom: 1rem;
+    }
+    .date {
+      color: #718096;
+      margin-bottom: 1.5rem;
+    }
+    .meal {
+      font-size: 1.2rem;
+      color: #22223b;
+      margin-bottom: 1rem;
+    }
+    .no-meal {
+      color: #e53e3e;
+      font-size: 1.1rem;
+    }
+    .trail-emoji {
+      position: fixed;
+      pointer-events: none;
+      font-size: 2rem;
+      will-change: transform, opacity;
+      transition: opacity 0.7s linear;
+      z-index: 9999;
+      user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>오늘의 급식</h1>
+    <div class="date" id="date"></div>
+    <div class="meal" id="meal"></div>
+  </div>
+  <script>
+    // 오늘 날짜 구하기 (YYYY-MM-DD, YYYYMMDD)
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    const mm = String(today.getMonth() + 1).padStart(2, '0');
+    const dd = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${yyyy}-${mm}-${dd}`;
+    const todayStrApi = `${yyyy}${mm}${dd}`;
+
+    // 날짜 표시
+    document.getElementById('date').textContent = todayStr;
+
+    // NEIS 급식 API 정보
+    const ATPT_OFCDC_SC_CODE = 'J10'; // 시도교육청코드
+    const SD_SCHUL_CODE = '7692196'; // 표준학교코드
+    const API_KEY = '';
+    const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?ATPT_OFCDC_SC_CODE=${ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${SD_SCHUL_CODE}&MLSV_YMD=${todayStrApi}&Type=json`;
+
+    // 급식 정보 가져오기
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        let mealText = '';
+        if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row && data.mealServiceDietInfo[1].row[0]) {
+          mealText = data.mealServiceDietInfo[1].row[0].DDISH_NM;
+          // HTML 태그 제거 및 <br/>을 줄바꿈으로 변환
+          mealText = mealText.replace(/<br\s*\/?>/gi, '\n').replace(/\([^)]*\)/g, '');
+          mealText = mealText.split('\\n').join(', ');
+          document.getElementById('meal').textContent = mealText;
+        } else {
+          document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보가 없습니다.</span>';
+        }
+      })
+      .catch(() => {
+        document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보를 불러오지 못했습니다.</span>';
+      });
+
+    // 마우스 잔상 이모지 효과
+    const emojis = ["🥦", "🥩", "🥗", "🥘", "🍞", "🍎"];
+    let emojiIndex = 0;
+
+    document.addEventListener('mousemove', function(e) {
+      const emoji = document.createElement('div');
+      emoji.className = 'trail-emoji';
+      emoji.textContent = emojis[emojiIndex];
+      emojiIndex = (emojiIndex + 1) % emojis.length;
+      emoji.style.left = (e.clientX - 12) + 'px';
+      emoji.style.top = (e.clientY - 12) + 'px';
+      emoji.style.opacity = '1';
+      document.body.appendChild(emoji);
+      // 잔상 효과: 점점 사라지고 제거
+      setTimeout(() => {
+        emoji.style.opacity = '0';
+        setTimeout(() => {
+          emoji.remove();
+        }, 700);
+      }, 10);
+    });
+  </script>
+</body>
+</html>
