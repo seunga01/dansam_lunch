@@ -7,7 +7,7 @@
   <style>
     body {
       font-family: 'Noto Sans KR', sans-serif;
-      background: #f6f8fa;
+      background: #e3f0ff;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -54,52 +54,94 @@
       margin-bottom: 0.5rem;
       font-weight: 500;
     }
+    .btns {
+      margin-bottom: 1.2rem;
+    }
+    .btns button {
+      background: #90cdf4;
+      color: #22223b;
+      border: none;
+      border-radius: 0.5rem;
+      padding: 0.5rem 1.2rem;
+      font-size: 1rem;
+      margin: 0 0.3rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btns button.active, .btns button:hover {
+      background: #4299e1;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>오늘의 급식</h1>
     <div class="school">단샘초등학교</div>
+    <div class="btns">
+      <button id="todayBtn" class="active">오늘 급식</button>
+      <button id="nextBtn">다음날 급식</button>
+    </div>
     <div class="date" id="date"></div>
     <div class="meal" id="meal"></div>
   </div>
   <script>
-    // 오늘 날짜 구하기 (YYYY-MM-DD, YYYYMMDD)
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    const dd = String(today.getDate()).padStart(2, '0');
-    const todayStr = `${yyyy}-${mm}-${dd}`;
-    const todayStrApi = `${yyyy}${mm}${dd}`;
+    // 날짜 상태 관리
+    let baseDate = new Date();
+    let isToday = true;
 
-    // 날짜 표시
-    document.getElementById('date').textContent = todayStr;
+    function formatDate(date, dash = true) {
+      const yyyy = date.getFullYear();
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      return dash ? `${yyyy}-${mm}-${dd}` : `${yyyy}${mm}${dd}`;
+    }
 
-    // NEIS 급식 API 정보
-    const ATPT_OFCDC_SC_CODE = 'J10'; // 시도교육청코드
-    const SD_SCHUL_CODE = '7692196'; // 표준학교코드
-    const API_KEY = '';
-    const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?ATPT_OFCDC_SC_CODE=${ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${SD_SCHUL_CODE}&MLSV_YMD=${todayStrApi}&Type=json`;
+    function fetchMeal(dateObj) {
+      const dateStr = formatDate(dateObj, true);
+      const dateStrApi = formatDate(dateObj, false);
+      document.getElementById('date').textContent = dateStr;
+      // NEIS 급식 API 정보
+      const ATPT_OFCDC_SC_CODE = 'J10'; // 시도교육청코드
+      const SD_SCHUL_CODE = '7692196'; // 표준학교코드
+      const url = `https://open.neis.go.kr/hub/mealServiceDietInfo?ATPT_OFCDC_SC_CODE=${ATPT_OFCDC_SC_CODE}&SD_SCHUL_CODE=${SD_SCHUL_CODE}&MLSV_YMD=${dateStrApi}&Type=json`;
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          let mealText = '';
+          if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row && data.mealServiceDietInfo[1].row[0]) {
+            mealText = data.mealServiceDietInfo[1].row[0].DDISH_NM;
+            mealText = mealText.replace(/<br\s*\/?>/gi, '\n').replace(/\([^)]*\)/g, '');
+            const menuArr = mealText.split(/\n|\\n/).map(m => m.trim()).filter(Boolean);
+            document.getElementById('meal').innerHTML = menuArr.join('<br>');
+          } else {
+            document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보가 없습니다.</span>';
+          }
+        })
+        .catch(() => {
+          document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보를 불러오지 못했습니다.</span>';
+        });
+    }
 
-    // 급식 정보 가져오기
-    fetch(url)
-      .then(res => res.json())
-      .then(data => {
-        let mealText = '';
-        if (data.mealServiceDietInfo && data.mealServiceDietInfo[1] && data.mealServiceDietInfo[1].row && data.mealServiceDietInfo[1].row[0]) {
-          mealText = data.mealServiceDietInfo[1].row[0].DDISH_NM;
-          // 괄호(알레르기 정보 등) 제거, <br/> 또는 \n을 <br>로 변환
-          mealText = mealText.replace(/<br\s*\/?>/gi, '\n').replace(/\([^)]*\)/g, '');
-          // 줄바꿈 기준으로 나누고, 각 메뉴 앞뒤 공백 제거
-          const menuArr = mealText.split(/\n|\\n/).map(m => m.trim()).filter(Boolean);
-          document.getElementById('meal').innerHTML = menuArr.join('<br>');
-        } else {
-          document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보가 없습니다.</span>';
-        }
-      })
-      .catch(() => {
-        document.getElementById('meal').innerHTML = '<span class="no-meal">급식 정보를 불러오지 못했습니다.</span>';
-      });
+    // 버튼 이벤트
+    document.getElementById('todayBtn').addEventListener('click', function() {
+      isToday = true;
+      baseDate = new Date();
+      this.classList.add('active');
+      document.getElementById('nextBtn').classList.remove('active');
+      fetchMeal(baseDate);
+    });
+    document.getElementById('nextBtn').addEventListener('click', function() {
+      isToday = false;
+      baseDate = new Date();
+      baseDate.setDate(baseDate.getDate() + 1);
+      this.classList.add('active');
+      document.getElementById('todayBtn').classList.remove('active');
+      fetchMeal(baseDate);
+    });
+
+    // 최초 로딩 시 오늘 급식 표시
+    fetchMeal(baseDate);
 
     // 마우스 잔상 이모지 효과
     const emojis = ["🥦", "🥩", "🥗", "🥘", "🍞", "🍎"];
